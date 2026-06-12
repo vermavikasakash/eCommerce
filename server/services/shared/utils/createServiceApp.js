@@ -1,9 +1,9 @@
 const express = require("express");
 const cors = require("cors");
 const morgan = require("morgan");
-const { env } = require("./config/env");
-const { customerContext } = require("./middleware/customerContext");
-const { errorHandler } = require("./middleware/errorHandler");
+const { env } = require("../config/env.js");
+const { customerContext } = require("../middleware/customerContext.js");
+const { errorHandler } = require("../middleware/errorHandler.js");
 
 const createServiceApp = ({ serviceName, registerRoutes }) => {
   const app = express();
