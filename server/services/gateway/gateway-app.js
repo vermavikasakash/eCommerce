@@ -1,0 +1,192 @@
+const express = require("express");
+const cors = require("cors");
+const morgan = require("morgan");
+const { env } = require("../shared/config/env");
+const { customerContext } = require("../shared/middleware/customerContext");
+const { errorHandler } = require("../shared/middleware/errorHandler");
+const { makeServiceRequest } = require("../shared/utils/makeServiceRequest");
+const { asyncHandler } = require("../shared/utils/asyncHandler");
+
+const createApp = () => {
+  const app = express();
+
+  app.use(
+    cors({
+      origin: env.clientOrigin,
+      credentials: true,
+    })
+  );
+  app.use(express.json());
+  app.use(morgan("dev"));
+  app.use(customerContext);
+
+  // Gateway endpoints
+  app.get("/", (req, res) => {
+    res.send("<h1>E-commerce API Gateway is running</h1>");
+  });
+
+  app.get("/health", (req, res) => {
+    res.status(200).send({
+      success: true,
+      service: "API Gateway",
+      status: "up",
+    });
+  });
+
+  // Route products requests to Product Service
+  app.get("/api/products", asyncHandler(async (req, res) => {
+    const data = await makeServiceRequest(
+      env.serviceUrls.products,
+      "GET",
+      "/api/products",
+      null,
+      req.customerId
+    );
+    res.status(200).send(data);
+  }));
+
+  app.get("/api/products/:productId", asyncHandler(async (req, res) => {
+    const data = await makeServiceRequest(
+      env.serviceUrls.products,
+      "GET",
+      `/api/products/${req.params.productId}`,
+      null,
+      req.customerId
+    );
+    res.status(200).send(data);
+  }));
+
+  // Route cart requests to Cart Service
+  app.get("/api/cart", asyncHandler(async (req, res) => {
+    const data = await makeServiceRequest(
+      env.serviceUrls.cart,
+      "GET",
+      "/api/cart",
+      null,
+      req.customerId
+    );
+    res.status(200).send(data);
+  }));
+
+  app.post("/api/cart/items", asyncHandler(async (req, res) => {
+    const data = await makeServiceRequest(
+      env.serviceUrls.cart,
+      "POST",
+      "/api/cart/items",
+      req.body,
+      req.customerId
+    );
+    res.status(201).send(data);
+  }));
+
+  app.patch("/api/cart/items/:productId", asyncHandler(async (req, res) => {
+    const data = await makeServiceRequest(
+      env.serviceUrls.cart,
+      "PATCH",
+      `/api/cart/items/${req.params.productId}`,
+      req.body,
+      req.customerId
+    );
+    res.status(200).send(data);
+  }));
+
+  app.delete("/api/cart/items/:productId", asyncHandler(async (req, res) => {
+    const data = await makeServiceRequest(
+      env.serviceUrls.cart,
+      "DELETE",
+      `/api/cart/items/${req.params.productId}`,
+      null,
+      req.customerId
+    );
+    res.status(200).send(data);
+  }));
+
+  app.delete("/api/cart", asyncHandler(async (req, res) => {
+    const data = await makeServiceRequest(
+      env.serviceUrls.cart,
+      "DELETE",
+      "/api/cart",
+      null,
+      req.customerId
+    );
+    res.status(200).send(data);
+  }));
+
+  // Route orders requests to Order Service
+  app.get("/api/orders", asyncHandler(async (req, res) => {
+    const data = await makeServiceRequest(
+      env.serviceUrls.orders,
+      "GET",
+      "/api/orders",
+      null,
+      req.customerId
+    );
+    res.status(200).send(data);
+  }));
+
+  app.post("/api/orders", asyncHandler(async (req, res) => {
+    const data = await makeServiceRequest(
+      env.serviceUrls.orders,
+      "POST",
+      "/api/orders",
+      req.body,
+      req.customerId
+    );
+    res.status(201).send(data);
+  }));
+
+  // Route payments requests to Payment Service
+  app.get("/api/payments/provider", asyncHandler(async (req, res) => {
+    const data = await makeServiceRequest(
+      env.serviceUrls.payments,
+      "GET",
+      "/api/payments/provider",
+      null,
+      req.customerId
+    );
+    res.status(200).send(data);
+  }));
+
+  app.post("/api/payments/charge", asyncHandler(async (req, res) => {
+    const data = await makeServiceRequest(
+      env.serviceUrls.payments,
+      "POST",
+      "/api/payments/charge",
+      req.body,
+      req.customerId
+    );
+    // payment service may return 201 for razorpay order creation
+    res.status(data && data.order ? 201 : 200).send(data);
+  }));
+
+  app.post("/api/payments/razorpay/verify", asyncHandler(async (req, res) => {
+    const data = await makeServiceRequest(
+      env.serviceUrls.payments,
+      "POST",
+      "/api/payments/razorpay/verify",
+      req.body,
+      req.customerId
+    );
+    res.status(200).send(data);
+  }));
+
+  // Internal events endpoint - services can post realtime events here
+  app.post('/internal/events', (req, res) => {
+    const { eventName, payload } = req.body || {};
+    if (!eventName) return res.status(400).send({ success: false, message: 'eventName required' });
+    try {
+      const eventBus = require('../shared/utils/eventBus');
+      eventBus.publish(eventName, payload || {});
+      return res.status(200).send({ success: true });
+    } catch (err) {
+      return res.status(500).send({ success: false, message: err.message });
+    }
+  });
+
+  // Error handler middleware
+  app.use(errorHandler);
+
+  return app;
+};
+
+module.exports = { createApp };

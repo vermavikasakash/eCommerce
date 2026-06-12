@@ -1,0 +1,89 @@
+version: '3.8'
+
+services:
+  # API Gateway
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile.gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - DEV_MODE=development
+      - PRODUCT_SERVICE_URL=http://product-service:8081
+      - CART_SERVICE_URL=http://cart-service:8082
+      - ORDER_SERVICE_URL=http://order-service:8083
+      - PAYMENT_SERVICE_URL=http://payment-service:8084
+      - CLIENT_ORIGIN=http://localhost:3000
+    depends_on:
+      - product-service
+      - cart-service
+      - order-service
+      - payment-service
+    networks:
+      - ecommerce
+
+  # Product Service
+  product-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.product
+    ports:
+      - "8081:8081"
+    environment:
+      - PORT=8081
+      - DEV_MODE=development
+    networks:
+      - ecommerce
+
+  # Cart Service
+  cart-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.cart
+    ports:
+      - "8082:8082"
+    environment:
+      - PORT=8082
+      - DEV_MODE=development
+      - PRODUCT_SERVICE_URL=http://product-service:8081
+    depends_on:
+      - product-service
+    networks:
+      - ecommerce
+
+  # Order Service
+  order-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.order
+    ports:
+      - "8083:8083"
+    environment:
+      - PORT=8083
+      - DEV_MODE=development
+      - CART_SERVICE_URL=http://cart-service:8082
+      - PAYMENT_SERVICE_URL=http://payment-service:8084
+    depends_on:
+      - cart-service
+      - payment-service
+    networks:
+      - ecommerce
+
+  # Payment Service
+  payment-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.payment
+    ports:
+      - "8084:8084"
+    environment:
+      - PORT=8084
+      - DEV_MODE=development
+    networks:
+      - ecommerce
+
+networks:
+  ecommerce:
+    driver: bridge

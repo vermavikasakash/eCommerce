@@ -6,9 +6,9 @@ import "react-toastify/dist/ReactToastify.css";
 
 const Layout = ({ children }) => {
   return (
-    <div>
+    <div className="app-frame">
       <Header />
-      <main >
+      <main>
         <ToastContainer />
         {children}
       </main>

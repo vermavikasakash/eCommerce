@@ -1,29 +1,49 @@
 import axios from "axios";
 
-//? CREATE ORDER API
+const API_BASE_URL = process.env.REACT_APP_API || "http://localhost:8080";
+const CUSTOMER_KEY = "ecommerce_customer_id";
 
-const createOrderFunction = async (payload) => {
-  try {
-    const res = await axios.post(
-      `${process.env.REACT_APP_API}/api/postOrders`,
-      payload
-    );
-    return res;
-  } catch (error) {
-    console.log(error);
-    return error;
-  }
+const getCustomerId = () => {
+  const existingCustomerId = localStorage.getItem(CUSTOMER_KEY);
+  if (existingCustomerId) return existingCustomerId;
+
+  const customerId = `web_${Date.now()}`;
+  localStorage.setItem(CUSTOMER_KEY, customerId);
+  return customerId;
 };
 
-//? GET PRODUCTS API
-const getProductsFunction = async () => {
-  try {
-    const res = await axios.get(`${process.env.REACT_APP_API}/api/getProducts`);
-    return res;
-  } catch (error) {
-    console.log(error);
-    return error;
-  }
-};
+const apiClient = axios.create({
+  baseURL: `${API_BASE_URL}/api`,
+});
 
-export { createOrderFunction, getProductsFunction };
+apiClient.interceptors.request.use((config) => ({
+  ...config,
+  headers: {
+    ...config.headers,
+    "x-customer-id": getCustomerId(),
+  },
+}));
+
+const getProductsFunction = () => apiClient.get("/products");
+const getCartFunction = () => apiClient.get("/cart");
+const addCartItemFunction = (productId, quantity = 1) =>
+  apiClient.post("/cart/items", { productId, quantity });
+const updateCartItemFunction = (productId, quantity) =>
+  apiClient.patch(`/cart/items/${productId}`, { quantity });
+const removeCartItemFunction = (productId) => apiClient.delete(`/cart/items/${productId}`);
+const clearCartFunction = () => apiClient.delete("/cart");
+const createOrderFunction = (payload) => apiClient.post("/orders", payload);
+const getOrdersFunction = () => apiClient.get("/orders");
+
+export {
+  API_BASE_URL,
+  getCustomerId,
+  getProductsFunction,
+  getCartFunction,
+  addCartItemFunction,
+  updateCartItemFunction,
+  removeCartItemFunction,
+  clearCartFunction,
+  createOrderFunction,
+  getOrdersFunction,
+};

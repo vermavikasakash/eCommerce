@@ -1,77 +1,74 @@
 import React, { useEffect, useState } from "react";
-import Layout from "../components/Layout/Layout";
+import { Button, Spinner } from "react-bootstrap";
+import { FiShoppingCart } from "react-icons/fi";
 import { toast } from "react-toastify";
-import { getProductsFunction } from "../serviceApi/servicesApi";
-import { Container, Button } from "react-bootstrap";
-
+import Layout from "../components/Layout/Layout";
 import { useGlobalData } from "../context/contextApiProvider";
+import { getProductsFunction } from "../serviceApi/servicesApi";
 
 const ProductHomePage = () => {
-  const [loader, setLoader] = useState(null);
+  const [loader, setLoader] = useState(false);
   const [products, setProducts] = useState([]);
+  const { addToCart } = useGlobalData();
 
-  const [globalData, setGlobalData, addToCart] = useGlobalData();
-
-  //? Fetching the Products from backend
-  const GetProductsFunction = async () => {
-    setLoader(true);
-    const result = await getProductsFunction();
-    if (result.status === 200) {
+  const getProducts = async () => {
+    try {
+      setLoader(true);
+      const result = await getProductsFunction();
       setProducts(result.data.products);
+    } catch (error) {
+      toast.error("Unable to fetch products");
+    } finally {
+      setLoader(false);
     }
-    setLoader(false);
   };
 
   useEffect(() => {
-    GetProductsFunction();
+    getProducts();
   }, []);
-
-  // ! JSX START
 
   return (
     <Layout>
-      <h2 style={{ textAlign: "center", marginTop: "10px" }}>Product</h2>
-      <div
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          gap: "1rem",
-          justifyContent: "center",
-          marginTop: "3rem",
-        }}
-      >
-        {products?.map((data) => (
-          <div
-            key={data.id}
-            style={{
-              marginBottom: "1rem",
-              paddingTop: "5px",
-              borderRadius: "10px",
-              border: "1px solid",
-              width: "350px",
-              height: "450px",
-              textAlign: "center",
-            }}
-          >
-            <img
-              src={data.image}
-              alt={data.name}
-              style={{ width: "200px", height: "250px" }}
-            />
-            <h3>{data.name}</h3>
-            <p>{data.description}</p>
-            <p>&#8377;{data.price}</p>
-            <Button
-              onClick={() => {
-                addToCart(data);
-                toast.success("Item added to cart");
-              }}
-            >
-              Add to Cart
-            </Button>
+      <section className="page-shell">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Microservice catalog</p>
+            <h1>Products</h1>
           </div>
-        ))}
-      </div>
+          <span className="status-pill">Live inventory</span>
+        </div>
+
+        {loader ? (
+          <div className="empty-state">
+            <Spinner animation="border" />
+          </div>
+        ) : (
+          <div className="product-grid">
+            {products.map((product) => (
+              <article className="product-card" key={product.id}>
+                <div className="product-image-wrap">
+                  <img src={product.image} alt={product.name} className="product-image" />
+                </div>
+                <div className="product-content">
+                  <div>
+                    <h3>{product.name}</h3>
+                    <p>{product.description}</p>
+                  </div>
+                  <div className="product-footer">
+                    <div>
+                      <strong>&#8377;{product.price}</strong>
+                      <span>{product.stock} in stock</span>
+                    </div>
+                    <Button onClick={() => addToCart(product)} title="Add to cart">
+                      <FiShoppingCart aria-hidden="true" />
+                    </Button>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
     </Layout>
   );
 };
